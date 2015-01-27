@@ -56,18 +56,22 @@ def makepointinglist(filename, coordtype):
 
     gains = []
     tobs = []
+    tsys = []
     glgb = []
-
+    
     for line in f:
         a = line.split()
         gains.append(float(a[2]))
         tobs.append(float(a[3]))
-
+        if len(a) == 5:
+            tsys.append(float(a[4]))
+        else:
+            tsys.append(None)
         glgb.append(makepointing(float(a[0]), float(a[1]), coordtype))
 
     f.close()
 
-    return np.array(glgb), tobs, gains
+    return np.array(glgb), tobs, gains, tsys
 
 def makepointing(coord1, coord2, coordtype):
 
@@ -170,7 +174,8 @@ class Survey:
 
                 self.pointingslist, \
                     self.tobslist, \
-                    self.gainslist = makepointinglist(filename, p_str)
+                    self.gainslist, \
+                    self.tsyslist = makepointinglist(filename, p_str)
                 """
                 # read in the pointing list
                 self.pointingslist = []
@@ -209,6 +214,10 @@ class Survey:
             elif a[1].count('system temperature'):
                 # tsys
                 self.tsys = float(a[0].strip())
+                # Global tsys is default value to use
+                # in case (optional) per-beam tsys is not
+                # provided
+                self.global_tsys = self.tsys
             elif a[1].count('centre frequency'):
                 # centre frequency
                 self.freq = float(a[0].strip())
@@ -340,6 +349,9 @@ class Survey:
                 offset_deg = offset_new
                 self.gain  = point.gain
                 self.tobs  = point.tobs
+                self.tsys  = point.tsys
+                if self.tsys is None:
+                    self.tsys = self.global_tsys
                 break
 
         return offset_deg
@@ -356,6 +368,9 @@ class Survey:
         # set gain and tobs for that point
         self.gain = self.gainslist[indx]
         self.tobs = self.tobslist[indx]
+        self.tsys = self.tsyslist[indx]
+        if self.tsys is None:
+            self.tsys = self.global_tsys
 
         return offset_deg
 
