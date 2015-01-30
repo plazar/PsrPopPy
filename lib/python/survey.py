@@ -60,6 +60,10 @@ def makepointinglist(filename, coordtype):
     glgb = []
     
     for line in f:
+        line, sep, comment = line.partition('#')
+        line = line.strip()
+        if not line:
+            continue
         a = line.split()
         gains.append(float(a[2]))
         tobs.append(float(a[3]))
