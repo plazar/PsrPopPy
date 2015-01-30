@@ -31,6 +31,8 @@ class Population:
 
         # list to store pulsar objects
         self.population = []
+        # list to store detection information
+        self.detection_info = []
 
         # distribution types
         self.pDistType = pDistType
@@ -108,11 +110,12 @@ class Population:
         """Write population to an ascii file"""
         
         with open(outf, 'w') as f:
-            titlestr = "Period_ms DM Width_ms GL GB S1400"
-            titlestr = " ".join([titlestr, "L1400 SPINDEX SNR DTRUE X Y Z\n"])
+            titlestr = "# Period_ms DM Width_ms GL GB S1400"
+            titlestr = " ".join([titlestr, "L1400 SPINDEX SNR DTRUE X Y Z"
+                                           "OFFSET GAIN TOBS TSYS\n"])
             f.write(titlestr)
-            for psr in self.population:
-            
+            for psr, detect_info in zip(self.population, self.detection_info):
+                offset, gain, tobs, tsys = detect_info
                 s = "{0}".format(psr.period)
                 s = "\t".join([s, "{0}".format(psr.dm)])
                 w_ms = psr.width_degree * psr.period / 360.0
@@ -127,6 +130,10 @@ class Population:
                 s = "\t".join([s, "{0}".format(psr.galCoords[0])])
                 s = "\t".join([s, "{0}".format(psr.galCoords[1])])
                 s = "\t".join([s, "{0}".format(psr.galCoords[2])])
+                s = "\t".join([s, "{0}".format(offset)])
+                s = "\t".join([s, "{0}".format(gain)])
+                s = "\t".join([s, "{0}".format(tobs)])
+                s = "\t".join([s, "{0}".format(tsys)])
                 s = "".join([s, "\n"])
 
                 f.write(s)

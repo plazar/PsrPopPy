@@ -161,7 +161,7 @@ class Survey:
                         #pointfptr = open(filepath, 'r')
                         filename = filepath
                     except:
-                        s = 'File {0} does not exist!!!'.format(pointfpath)
+                        s = 'File {0} does not exist!!!'.format(pointfname)
                         raise CoordinateException(s)
 
                 if a[1].count('galactic'):
@@ -204,20 +204,16 @@ class Survey:
                 self.beta = float(a[0].strip())
             elif a[1].count('antenna gain'):
                 # gain
-                self.gain = float(a[0].strip())
+                self.global_gain = float(a[0].strip())
             elif a[1].count('integration time'):
                 # tobs
-                self.tobs = float(a[0].strip())
+                self.global_tobs = float(a[0].strip())
             elif a[1].count('sampling'):
                 # tsamp
                 self.tsamp = float(a[0].strip())
             elif a[1].count('system temperature'):
                 # tsys
-                self.tsys = float(a[0].strip())
-                # Global tsys is default value to use
-                # in case (optional) per-beam tsys is not
-                # provided
-                self.global_tsys = self.tsys
+                self.global_tsys = float(a[0].strip())
             elif a[1].count('centre frequency'):
                 # centre frequency
                 self.freq = float(a[0].strip())
@@ -283,10 +279,10 @@ class Survey:
         """Method to define how to print the class"""
         s = "Survey class for {0}:".format(self.surveyName)
         s = '\n\t'.join([s, "beta = {0}".format(self.beta)])
-        s = '\n\t'.join([s, "gain = {0}".format(self.gain)])
-        s = '\n\t'.join([s, "tobs = {0} s".format(self.tobs)])
+        s = '\n\t'.join([s, "gain = {0}".format(self.global_gain)])
+        s = '\n\t'.join([s, "tobs = {0} s".format(self.global_tobs)])
         s = '\n\t'.join([s, "tsamp = {0} ms".format(self.tsamp)])
-        s = '\n\t'.join([s, "Tsys = {0} K".format(self.tsys)])
+        s = '\n\t'.join([s, "Tsys = {0} K".format(self.global_tsys)])
         s = '\n\t'.join([s, "Centre frequency = {0} MHz".format(self.freq)])
         s = '\n\t'.join([s, "Bandwidth = {0} MHz".format(self.bw)])
         s = '\n\t'.join([s, "Chan BW = {0} MHz".format(self.bw_chan)])
@@ -324,37 +320,7 @@ class Survey:
         if random.random() > self.coverage:
             return False
         
-        return True 
-
-    def inPointing(self, pulsar):
-        """Calculate whether pulsar is inside FWHM/2 of pointing position.
-        Currently breaks as soon as it finds a match. !!!Could be a closer
-        position further down the list!!!"""
-        # initialise offset_deg to be a big old number
-        # FWHM is in arcmin so always multiply by 60
-        #### MATRIX-IZE THIS PROBLEM??
-        #http://wiki.scipy.org/Cookbook/KDTree
-        offset_deg = 1.
-
-        # loop over pointings
-        for point in self.pointingslist:
-            # do a really basic check first
-
-            glterm = (pulsar.gl - point.gl)**2
-            gbterm = (pulsar.gb - point.gb)**2
-            offset_new = math.sqrt(glterm + gbterm)
-
-            # if the beam is close enough, break out of the loop
-            if offset_new < self.fwhm:
-                offset_deg = offset_new
-                self.gain  = point.gain
-                self.tobs  = point.tobs
-                self.tsys  = point.tsys
-                if self.tsys is None:
-                    self.tsys = self.global_tsys
-                break
-
-        return offset_deg
+        return True
 
     def inPointing_new(self, pulsar):
         """Use numpy-foo to determine closest obs pointing"""
@@ -363,18 +329,35 @@ class Survey:
         p = np.array(p)
         dists = np.sqrt(((self.pointingslist - p)**2).sum(1))
         # get the min of dists and its index
-        offset_deg = np.min(dists)
         indx = np.argmin(dists)
+        offset_deg = dists[indx]
         # set gain and tobs for that point
-        self.gain = self.gainslist[indx]
-        self.tobs = self.tobslist[indx]
-        self.tsys = self.tsyslist[indx]
-        if self.tsys is None:
-            self.tsys = self.global_tsys
+        gain = self.gainslist[indx]
+        tobs = self.tobslist[indx]
+        tsys = self.tsyslist[indx]
+        if tsys is None:
+            tsys = self.global_tsys
 
-        return offset_deg
+        return offset_deg, gain, tobs, tsys
 
-    def SNRcalc(self, pulsar, pop):
+    def get_obs_params(self, pulsar):
+        if self.inRegion(pulsar):
+            # If pointing list is provided, check how close nearest
+            # pointing is
+            if self.pointingslist is not None:
+                # convert offset from degree to arcmin
+                offset, gain, tobs, tsys = self.inPointing_new(pulsar) * 60.0
+            else:
+                # calculate offset as a random offset within FWHM/2
+                offset = self.fwhm * math.sqrt(random.random()) / 2.0
+                gain = self.global_gain
+                tobs = self.global_tobs
+                tsys = self.global_tsys
+            return offset, gain, tobs, tsys
+        else:
+            return -2
+
+    def SNRcalc(self, pulsar, pop, offset, gain, tobs, tsys):
         """Calculate the S/N ratio of a given pulsar in the survey"""
         # if not in region, S/N = 0
 
@@ -385,18 +368,6 @@ class Survey:
         if pulsar.dead:
             return 0.
         # otherwise check if pulsar is in entire region
-        if self.inRegion(pulsar):
-            # If pointing list is provided, check how close nearest 
-            # pointing is
-            if self.pointingslist is not None:
-                # convert offset from degree to arcmin
-                offset = self.inPointing_new(pulsar) * 60.0
-
-            else:
-                # calculate offset as a random offset within FWHM/2
-                offset = self.fwhm * math.sqrt(random.random()) / 2.0
-        else:
-            return -2
 
         # Get degfac depending on self.gainpat
         if self.gainpat == 'airy':
@@ -435,11 +406,11 @@ class Survey:
         #radiometer signal to noise
         sig_to_noise = rad.calcSNR(self.calcflux(pulsar, pop.ref_freq),
                                    self.beta,
-                                   self.tsys,
+                                   tsys,
                                    self.tskypy(pulsar),
-                                   self.gain,
+                                   gain,
                                    self.npol,
-                                   self.tobs,
+                                   tobs,
                                    self.bw,
                                    delta)
 

@@ -107,8 +107,17 @@ def run(pop,
             if psr.dead:
                 continue
 
-            # is the pulsar over the detection threshold?
-            snr = s.SNRcalc(psr, pop)
+            # Get obs info for pulsar if it is in survey region
+            # This corresponds to closest pointing if using a
+            # pointing list
+            obs_info = s.get_obs_params(psr)
+            if obs_info == -2:
+                # Pulsar is not in survey region
+                snr = -2
+            else:
+                offset, gain, tobs, tsys = obs_info
+                # is the pulsar over the detection threshold?
+                snr = s.SNRcalc(psr, pop, offset, gain, tobs, tsys)
 
             # add scintillation, if required
             # modifying S/N rather than flux is sensible because then
@@ -120,7 +129,7 @@ def run(pop,
                 ndet += 1
                 psr.snr = snr
                 survpop.population.append(psr)
-                
+                survpop.detection_info.append((snr, offset, gain, tobs, tsys))
                 # check if the pulsar has been detected in other 
                 # surveys
                 if not psr.detected:
