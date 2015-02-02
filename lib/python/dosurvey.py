@@ -115,9 +115,9 @@ def run(pop,
                 # Pulsar is not in survey region
                 snr = -2
             else:
-                offset, gain, tobs, tsys = obs_info
+                offset, gain, tobs, tsys, tsky = obs_info
                 # is the pulsar over the detection threshold?
-                snr = s.SNRcalc(psr, pop, offset, gain, tobs, tsys)
+                snr = s.SNRcalc(psr, pop, offset, gain, tobs, tsys, tsky)
 
             # add scintillation, if required
             # modifying S/N rather than flux is sensible because then
@@ -129,7 +129,7 @@ def run(pop,
                 ndet += 1
                 psr.snr = snr
                 survpop.population.append(psr)
-                survpop.detection_info.append((snr, offset, gain, tobs, tsys))
+                survpop.detection_info.append((snr, offset, gain, tobs, tsys, tsky))
                 # check if the pulsar has been detected in other 
                 # surveys
                 if not psr.detected:

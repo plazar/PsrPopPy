@@ -296,7 +296,15 @@ def generate(ngen,
             if surveyList is not None:
                 detect_int = 0 # just a flag if pulsar is detected
                 for surv in surveys:
-                    SNR = surv.SNRcalc(pulsar, pop)
+                    # do SNR calculation
+                    obs_info = surv.get_obs_params(p)
+                    if obs_info == -2:
+                        # Pulsar is not in survey region
+                        SNR = -2
+                    else:
+                        offset, gain, tobs, tsys, tsky = obs_info
+                        # is the pulsar over the detection threshold?
+                        SNR = surv.SNRcalc(p, pop, offset, gain, tobs, tsys, tsky)
 
                     if SNR > surv.SNRlimit:
                         # SNR is over threshold

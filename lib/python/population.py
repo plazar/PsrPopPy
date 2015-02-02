@@ -111,11 +111,11 @@ class Population:
         
         with open(outf, 'w') as f:
             titlestr = "# Period_ms DM Width_ms GL GB S1400"
-            titlestr = " ".join([titlestr, "L1400 SPINDEX SNR DTRUE X Y Z"
-                                           "OFFSET GAIN TOBS TSYS\n"])
+            titlestr = " ".join([titlestr, "L1400 SPINDEX SNR DTRUE X Y Z "
+                                           "OFFSET GAIN TOBS TSYS TSKY\n"])
             f.write(titlestr)
             for psr, detect_info in zip(self.population, self.detection_info):
-                offset, gain, tobs, tsys = detect_info
+                snr, offset, gain, tobs, tsys, tsky = detect_info
                 s = "{0}".format(psr.period)
                 s = "\t".join([s, "{0}".format(psr.dm)])
                 w_ms = psr.width_degree * psr.period / 360.0
@@ -125,7 +125,7 @@ class Population:
                 s = "\t".join([s, "{0}".format(psr.s_1400())])
                 s = "\t".join([s, "{0}".format(psr.lum_1400)])
                 s = "\t".join([s, "{0}".format(psr.spindex)])
-                s = "\t".join([s, "{0}".format(psr.snr)])
+                s = "\t".join([s, "{0}".format(snr)])
                 s = "\t".join([s, "{0}".format(psr.dtrue)])
                 s = "\t".join([s, "{0}".format(psr.galCoords[0])])
                 s = "\t".join([s, "{0}".format(psr.galCoords[1])])
@@ -134,6 +134,7 @@ class Population:
                 s = "\t".join([s, "{0}".format(gain)])
                 s = "\t".join([s, "{0}".format(tobs)])
                 s = "\t".join([s, "{0}".format(tsys)])
+                s = "\t".join([s, "{0}".format(tsky)])
                 s = "".join([s, "\n"])
 
                 f.write(s)

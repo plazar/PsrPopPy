@@ -346,22 +346,24 @@ class Survey:
 
     def get_obs_params(self, pulsar):
         if self.inRegion(pulsar):
+            tsky = self.tskypy(pulsar)
             # If pointing list is provided, check how close nearest
             # pointing is
             if self.pointingslist is not None:
+                offset, gain, tobs, tsys = self.inPointing_new(pulsar)
                 # convert offset from degree to arcmin
-                offset, gain, tobs, tsys = self.inPointing_new(pulsar) * 60.0
+                offset *= 60
             else:
                 # calculate offset as a random offset within FWHM/2
                 offset = self.fwhm * math.sqrt(random.random()) / 2.0
                 gain = self.global_gain
                 tobs = self.global_tobs
                 tsys = self.global_tsys
-            return offset, gain, tobs, tsys
+            return offset, gain, tobs, tsys, tsky
         else:
             return -2
 
-    def SNRcalc(self, pulsar, pop, offset, gain, tobs, tsys):
+    def SNRcalc(self, pulsar, pop, offset, gain, tobs, tsys, tsky):
         """Calculate the S/N ratio of a given pulsar in the survey"""
         # if not in region, S/N = 0
 
@@ -411,7 +413,7 @@ class Survey:
         sig_to_noise = rad.calcSNR(self.calcflux(pulsar, pop.ref_freq),
                                    self.beta,
                                    tsys,
-                                   self.tskypy(pulsar),
+                                   tsky,
                                    gain,
                                    self.npol,
                                    tobs,
